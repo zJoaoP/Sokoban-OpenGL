@@ -5,9 +5,11 @@
 
 using namespace std;
 
-#define SCREEN_WIDTH 	680
-#define SCREEN_HEIGHT 	440
+#define SCREEN_WIDTH 	1280
+#define SCREEN_HEIGHT 	720
 #define DEBUG			(true)
+
+float lightsY = 0.0f;
 
 class Point{
 	private:
@@ -118,9 +120,41 @@ public:
 		Target(float x, float y, float z) : Object(x, y, z) {}
 };
 
+class LightSource{
+	private:
+		Point position;
+		bool isPlayerLight;
+		int id;
+
+	public:
+		LightSource(float x, float y, float z, int id, bool isPlayerLight){
+			this->isPlayerLight = isPlayerLight;
+			this->position = Point(x, y, z);
+			this->id = id;
+
+			glEnable(GL_LIGHT0 + this->id);
+		}
+
+		void draw(){
+			GLfloat lightPosition[] = {position.getX(), position.getY() + lightsY, position.getZ(), 0.0};
+			GLfloat lightDiffuse[] = {1.0, 1.0, 1.0, 1.0};
+			GLfloat matShininess[] = {100.0};
+			if(isPlayerLight){
+
+			}
+
+			glLightfv(GL_LIGHT0 + this->id, GL_DIFFUSE, lightDiffuse);
+			glLightfv(GL_LIGHT0 + this->id, GL_POSITION, lightPosition);
+			glMaterialfv(GL_FRONT_AND_BACK, GL_SHININESS, matShininess);
+
+			glEnable(GL_LIGHT0 + this->id);
+		}
+};
+
 class Scene{
 	private:
 		vector <Object*> objects;
+		vector <LightSource*> lightSources;
 		Object *player;
 		static Scene* instance;
 
@@ -137,16 +171,14 @@ class Scene{
 		void init(char *fileName){
 			FILE *file = fopen(fileName, "r+");
 			objects = vector <Object*> ();
+			lightSources = vector <LightSource*> ();
 
 			if(file != NULL){
 				int width, height;
 				fscanf(file, "%d %d", &width, &height);
 				for(int i = 0; i < width; i++){
 					for(int j = 0; j < height; j++){
-						float x = (i * 1) + 0.5;
-						float z = (j * 1) + 0.5;
-						float y = 0.5;
-
+						float x = (i * 1) + 0.5, y = 0.5, z = (j * 1) + 0.5;
 						int objectType;
 
 						fscanf(file, "%d", &objectType);
@@ -159,11 +191,15 @@ class Scene{
 							player = new Player(x, y, z);
 							objects.push_back(new Ground(x, y, z));
 							objects.push_back(player);
+
+							lightSources.push_back(new LightSource(x, y, z, lightSources.size(), true));
 						}
 						else if(objectType == 4)
 							objects.push_back(new Ground(x, y, z));
-						else
-							objects.push_back(new Ground(x, y, z));						
+						else{
+							objects.push_back(new Ground(x, y, z));
+							lightSources.push_back(new LightSource(x, y, z, lightSources.size(), false));	
+						}
 					}
 				}
 				fclose(file);
@@ -171,8 +207,13 @@ class Scene{
 		}
 
 		void draw(){
+			for(int i = 0; i < lightSources.size(); i++)
+				lightSources[i]->draw();
+
 			for(int i = 0; i < objects.size(); i++)
 				objects[i]->draw();
+
+			glEnable(GL_LIGHTING);
 		}
 
 		Point getPlayerPosition(){
@@ -181,8 +222,8 @@ class Scene{
 
 		Point getCameraPositionByReference(int cameraReference){
 			Point playerPosition = getPlayerPosition();
-			float cameraX = 0.0, cameraY = 12.9, cameraZ = 0.0;
-			float defaultOffset = 17.6;
+			float cameraX = 0.0, cameraY = 6.0, cameraZ = 0.0;
+			float defaultOffset = 7.0;
 
 			if(cameraReference == 0){
 				cameraX = playerPosition.getX();
@@ -237,7 +278,7 @@ void setupCamera(){
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
 
-	gluPerspective(10.0f, 16.0/9.0, 0.1, 100.0);
+	gluPerspective(25.0f, 16.0/9.0, 0.1, 100.0);
 	gluLookAt(cameraPosition.getX(), cameraPosition.getY(), cameraPosition.getZ(), lookPointPosition.getX(), lookPointPosition.getY(), lookPointPosition.getZ(), 0, 1, 0);
 }
 
@@ -249,7 +290,7 @@ void draw(){
 	Scene *scene = Scene::getInstance();
 	scene->draw();
 
-	glutSwapBuffers();;
+	glutSwapBuffers();
 }
 
 void initScene(){
@@ -258,7 +299,15 @@ void initScene(){
 	glOrtho(-100.0, 100.0, -100.0, 100.0, -100.0, 100.0);
 	glClearColor(1.0, 1.0, 1.0, 1.0);
 
+	glShadeModel(GL_SMOOTH);
+
+	// glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_TRUE);
+	glEnable(GL_COLOR_MATERIAL);
 	glEnable(GL_DEPTH_TEST);
+	glEnable(GL_CULL_FACE);
+	glEnable(GL_LIGHTING);
+
+	// glLightModel(GL_LIGHT_MODEL_TWO_SIDE);
 }
 
 void specialInput(int key, int x, int y){
@@ -273,12 +322,25 @@ void specialInput(int key, int x, int y){
 			glutPostRedisplay();
 			break;
 		}
+		case GLUT_KEY_UP:{
+			lightsY += 0.1;
+			glutPostRedisplay();
+			break;
+		}
+		case GLUT_KEY_DOWN:{
+			lightsY -= 0.1;
+			glutPostRedisplay();
+			break;
+		}
 	}
+	printf("%f\n", lightsY);
 	cameraReference = (cameraReference < 0) ? 3 : (cameraReference % 4);
 }
 
 int main(int argc, char *argv[]){
 	glutInit(&argc, argv);
+	glutInitDisplayMode(GLUT_SINGLE | GLUT_RGB | GLUT_DEPTH);
+
 	if(argc != 2){
 		printf("Uso correto: %s [mapa-da-fase.txt]\n", argv[0]);
 		return 1;
@@ -292,7 +354,7 @@ int main(int argc, char *argv[]){
 	int screenHeight = glutGet(GLUT_SCREEN_HEIGHT);
 	glutInitWindowPosition((screenWidth - SCREEN_WIDTH) / 2, (screenHeight - SCREEN_HEIGHT) / 2);
 
-	glutInitWindowSize(680, 440);
+	glutInitWindowSize(SCREEN_WIDTH, SCREEN_HEIGHT);
 	glutCreateWindow("Sokoban - OpenGL");
 	
 	glutSpecialFunc(specialInput);
