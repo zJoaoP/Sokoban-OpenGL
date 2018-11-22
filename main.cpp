@@ -9,8 +9,6 @@ using namespace std;
 #define SCREEN_HEIGHT 	720
 #define DEBUG			(true)
 
-float lightsY = 0.0f;
-
 class Point{
 	private:
 		float x, y, z;
@@ -90,7 +88,7 @@ class Ground : public Object{
 		Ground(float x, float y, float z) : Object(x, y - 1.0, z) {}
 
 		void draw(){
-			glColor3f(0.19, 0.19, 0.19);
+			glColor3f(0.38, 0.38, 0.38);
 			this->drawCubeOnCurrentPosition(1.0);
 		}
 };
@@ -110,7 +108,7 @@ public:
 		Player(float x, float y, float z) : Object(x, y, z) {}
 
 		void draw(){
-			glColor3f(0, 0, 0);
+			glColor3f(0.19, 0.19, 0.19);
 			this->drawSphereOnCurrentPosition(0.5);
 		}
 };
@@ -136,18 +134,17 @@ class LightSource{
 		}
 
 		void draw(){
-			GLfloat lightPosition[] = {position.getX(), position.getY() + lightsY, position.getZ(), 0.0};
-			GLfloat lightDiffuse[] = {1.0, 1.0, 1.0, 1.0};
-			GLfloat matShininess[] = {100.0};
-			if(isPlayerLight){
+			glPushMatrix();
+				GLfloat lightPosition[] = {position.getX(), position.getY() + 1.0f, position.getZ(), 0.0};
+				GLfloat lightDiffuse[] = {1.0, 1.0, 1.0, 1.0};
+				GLfloat matShininess[] = {100.0};
 
-			}
+				glLightfv(GL_LIGHT0 + this->id, GL_DIFFUSE, lightDiffuse);
+				glLightfv(GL_LIGHT0 + this->id, GL_POSITION, lightPosition);
+				glMaterialfv(GL_FRONT_AND_BACK, GL_SHININESS, matShininess);
 
-			glLightfv(GL_LIGHT0 + this->id, GL_DIFFUSE, lightDiffuse);
-			glLightfv(GL_LIGHT0 + this->id, GL_POSITION, lightPosition);
-			glMaterialfv(GL_FRONT_AND_BACK, GL_SHININESS, matShininess);
-
-			glEnable(GL_LIGHT0 + this->id);
+				glEnable(GL_LIGHT0 + this->id);
+			glPopMatrix();
 		}
 };
 
@@ -207,6 +204,8 @@ class Scene{
 		}
 
 		void draw(){
+			// glDisable(GL_LIGHTING);
+
 			for(int i = 0; i < lightSources.size(); i++)
 				lightSources[i]->draw();
 
@@ -301,13 +300,10 @@ void initScene(){
 
 	glShadeModel(GL_SMOOTH);
 
-	// glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_TRUE);
 	glEnable(GL_COLOR_MATERIAL);
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_CULL_FACE);
 	glEnable(GL_LIGHTING);
-
-	// glLightModel(GL_LIGHT_MODEL_TWO_SIDE);
 }
 
 void specialInput(int key, int x, int y){
@@ -322,18 +318,7 @@ void specialInput(int key, int x, int y){
 			glutPostRedisplay();
 			break;
 		}
-		case GLUT_KEY_UP:{
-			lightsY += 0.1;
-			glutPostRedisplay();
-			break;
-		}
-		case GLUT_KEY_DOWN:{
-			lightsY -= 0.1;
-			glutPostRedisplay();
-			break;
-		}
 	}
-	printf("%f\n", lightsY);
 	cameraReference = (cameraReference < 0) ? 3 : (cameraReference % 4);
 }
 
