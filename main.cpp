@@ -134,14 +134,20 @@ class LightSource{
 		}
 
 		void draw(){
+			if(isPlayerLight)
+				return;
+
 			glPushMatrix();
-				GLfloat lightPosition[] = {position.getX(), position.getY() + 1.0f, position.getZ(), 0.0};
+				glMatrixMode(GL_MODELVIEW);
+				glLoadIdentity();
+
+				GLfloat lightPosition[] = {position.getX(), position.getY() + 0.4f, position.getZ(), 1.0};
 				GLfloat lightDiffuse[] = {1.0, 1.0, 1.0, 1.0};
-				GLfloat matShininess[] = {100.0};
 
 				glLightfv(GL_LIGHT0 + this->id, GL_DIFFUSE, lightDiffuse);
 				glLightfv(GL_LIGHT0 + this->id, GL_POSITION, lightPosition);
-				glMaterialfv(GL_FRONT_AND_BACK, GL_SHININESS, matShininess);
+
+				printf("Coordenada da luz: (%f, %f, %f)\n", position.getX(), position.getY(), position.getZ());
 
 				glEnable(GL_LIGHT0 + this->id);
 			glPopMatrix();
@@ -204,15 +210,11 @@ class Scene{
 		}
 
 		void draw(){
-			// glDisable(GL_LIGHTING);
-
 			for(int i = 0; i < lightSources.size(); i++)
 				lightSources[i]->draw();
 
 			for(int i = 0; i < objects.size(); i++)
 				objects[i]->draw();
-
-			glEnable(GL_LIGHTING);
 		}
 
 		Point getPlayerPosition(){
@@ -279,15 +281,23 @@ void setupCamera(){
 
 	gluPerspective(25.0f, 16.0/9.0, 0.1, 100.0);
 	gluLookAt(cameraPosition.getX(), cameraPosition.getY(), cameraPosition.getZ(), lookPointPosition.getX(), lookPointPosition.getY(), lookPointPosition.getZ(), 0, 1, 0);
+
+	glMatrixMode(GL_MODELVIEW);
 }
 
 void draw(){
+	printf("draw\n");
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	setupCamera();
 	
 	Scene *scene = Scene::getInstance();
 	scene->draw();
+
+	GLenum err;
+	while((err = glGetError()) != GL_NO_ERROR){
+		printf("[OpenGL Error]\n");
+	}
 
 	glutSwapBuffers();
 }
@@ -302,19 +312,21 @@ void initScene(){
 
 	glEnable(GL_COLOR_MATERIAL);
 	glEnable(GL_DEPTH_TEST);
-	glEnable(GL_CULL_FACE);
 	glEnable(GL_LIGHTING);
+
+	glEnable(GL_CULL_FACE);
+	glCullFace(GL_BACK);
 }
 
 void specialInput(int key, int x, int y){
 	switch(key){
 		case GLUT_KEY_LEFT:{
-			cameraReference -= 1;
+			cameraReference += 1;
 			glutPostRedisplay();
 			break;
 		}
 		case GLUT_KEY_RIGHT:{
-			cameraReference += 1;
+			cameraReference -= 1;
 			glutPostRedisplay();
 			break;
 		}
